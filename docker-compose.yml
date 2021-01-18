@@ -1,0 +1,67 @@
+version: '3.7'
+
+services:
+  myreverse:
+    container_name: myreverse
+    image: bunkerity/bunkerized-nginx
+    restart: always
+    environment:
+      - SERVER_NAME=about.gomi.land
+      - SERVE_FILES=no
+      - DISABLE_DEFAULT_SERVER=yes
+      - REDIRECT_HTTP_TO_HTTPS=yes
+      - AUTO_LETS_ENCRYPT=yes
+      - USE_PROXY_CACHE=yes
+      - USE_GZIP=yes
+      - USE_BROTLI=yes
+      - USE_REVERSE_PROXY=yes
+      - REVERSE_PROXY_URL_1=/api/
+      - REVERSE_PROXY_HOST_1=http://app:3000/
+    networks:
+      - webnet
+    volumes:
+      - ./certfiles:/etc/letsencrypt
+      - ./server-confs:/server-confs:ro
+    depends_on:
+      - app
+    ports:
+      - 80:8080
+      - 443:8443
+  redis:
+    container_name: redis
+    image: redis
+    restart: always
+    networks:
+      - webnet
+  db:
+    container_name: db
+    image: mysql
+    restart: always
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      - MYSQL_ROOT_PASSWORD=examp1etestdbpassw0rd
+    ports:
+      - 5432:5432
+    networks:
+      - webnet
+    volumes:
+      - dbdisk:/var/lib/mysql
+  app:
+    container_name: app
+    build:
+      context: .
+      target: development
+    command: npm run start:dev
+    networks:
+      - webnet
+    depends_on:
+      - redis
+      - db
+    restart: always
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
+networks:
+  webnet:
+volumes:
+  dbdisk:
